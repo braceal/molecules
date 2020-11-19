@@ -228,8 +228,8 @@ def _traj_to_dset(topology, ref_topology, traj_file,
     start_time = time.time() 
     
     # Copy traj_file to node local storage and wrap trajectory
-    local_traj_file = shutil.copy(traj_file, f'$BBPATH/{uuid.uuid4()}.dcd')
-    wrapped_traj_file =  f'$BBPATH/{uuid.uuid4()}.dcd' 
+    local_traj_file = shutil.copy(traj_file, f'/tmp/{uuid.uuid4()}.dcd')
+    wrapped_traj_file =  f'/tmp/{uuid.uuid4()}.dcd' 
     wrap_traj(topology, local_traj_file, wrapped_traj_file)
  
     # Load simulation and reference structures
