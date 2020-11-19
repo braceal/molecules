@@ -5,6 +5,10 @@ import numpy as np
 import MDAnalysis as mda
 from MDAnalysis.analysis import distances, rms, align
 from molecules.utils import open_h5
+import shutil
+import uuid
+
+
 
 def _save_sparse_contact_maps(h5_file, contact_maps, 
                               cm_format='sparse-concat', **kwargs):
@@ -145,6 +149,17 @@ def fraction_of_contacts(cm, ref_cm):
     """
     return 1 - (cm != ref_cm).mean()
 
+def wrap_traj(pdb, dcd, output_dcd)
+    u = mda.Universe(pdb, dcd)
+    system = u.select_atoms('protein and resname UNK')
+    with mda.Writer(output_dcd, u.atoms.n_atoms) as W: 
+        for _ in u.trajectory: 
+            box_size = system.dimensions[:3]
+            box_center = box_size / 2 
+            trans_vec = box_center - (system.center_of_mass())
+            system.translate(trans_vec).wrap() 
+            W.write(system)
+
 def _traj_to_dset(topology, ref_topology, traj_file,
                   save_file=None,
                   rmsd=True, fnc=True,
@@ -210,10 +225,15 @@ def _traj_to_dset(topology, ref_topology, traj_file,
     """
 
     # start timer
-    start_time = time.time()
-
+    start_time = time.time() 
+    
+    # Copy traj_file to node local storage and wrap trajectory
+    local_traj_file = shutil.copy(traj_file, f'$BBPATH/{uuid.uuid4()}.dcd')
+    wrapped_traj_file =  f'$BBPATH/{uuid.uuid4()}.dcd' 
+    wrap_traj(topology, local_traj_file, wrapped_traj_file)
+ 
     # Load simulation and reference structures
-    sim = mda.Universe(topology, traj_file)
+    sim = mda.Universe(topology, wrapped_traj_file)
     ref = mda.Universe(ref_topology)
 
     if verbose:
@@ -227,11 +247,10 @@ def _traj_to_dset(topology, ref_topology, traj_file,
     ref_cm = distances.contact_matrix(ref_positions, 
                                       float(distance_kernel_params["threshold"]),
                                       returntype='sparse')
-
     if rmsd or point_cloud:
         # Align trajectory to compute accurate RMSD or point cloud
         align.AlignTraj(sim, ref, select=sel, in_memory=True).run()
-    
+        
     # Initialize buffers. Only turn into containers if user specifies to.
     rmsd_data, fnc_data, pc_data, contact_map_data = None, None, None, None
 
@@ -336,6 +355,8 @@ def _traj_to_dset(topology, ref_topology, traj_file,
     end_time = time.time()
     duration = end_time - start_time
 
+    #move wrapped_traj back to parallel file system
+    shutil.move(wrapped_traj_file, traj_file)
     # Any of these could be None based on the user input
     return rmsd_data, fnc_data, pc_data, contact_map_data, sim_len, duration
 
