@@ -149,7 +149,7 @@ def fraction_of_contacts(cm, ref_cm):
     """
     return 1 - (cm != ref_cm).mean()
 
-def wrap_traj(pdb, dcd, output_dcd)
+def wrap_traj(pdb, dcd, output_dcd):
     u = mda.Universe(pdb, dcd)
     system = u.select_atoms('protein and resname UNK')
     with mda.Writer(output_dcd, u.atoms.n_atoms) as W: 
