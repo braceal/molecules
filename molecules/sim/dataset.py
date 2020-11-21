@@ -3,6 +3,7 @@ import time
 import h5py
 import numpy as np
 import MDAnalysis as mda
+from MDAnalysis import transformations
 from MDAnalysis.analysis import distances, rms, align
 from molecules.utils import open_h5
 import shutil
@@ -151,14 +152,20 @@ def fraction_of_contacts(cm, ref_cm):
 
 def wrap_traj(pdb, dcd, output_dcd):
     u = mda.Universe(pdb, dcd)
-    system = u.select_atoms('protein and resname UNK')
-    with mda.Writer(output_dcd, u.atoms.n_atoms) as W: 
-        for _ in u.trajectory: 
-            box_size = system.dimensions[:3]
-            box_center = box_size / 2 
-            trans_vec = box_center - (system.center_of_mass())
-            system.translate(trans_vec).wrap() 
-            W.write(system)
+    protein = u.select_atoms("protein or resname UNK")
+    water = u.select_atoms("resname WAT")
+    
+    workflow = [
+        mda.transformations.unwrap(u.atoms),
+        mda.transformations.center_in_box(protein, center="geometry"),
+        mda.transformations.wrap(u.atoms, compound="residues"),
+    ]
+        
+    u.trajectory.add_transformations(*workflow)
+    
+    with mda.Writer(output_dcd, u.atoms.n_atoms) as w:
+        for _ in u.trajectory:
+            w.write(u.atoms)
 
 def _traj_to_dset(topology, ref_topology, traj_file,
                   save_file=None,
