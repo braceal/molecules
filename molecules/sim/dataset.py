@@ -10,7 +10,6 @@ import shutil
 import uuid
 
 
-
 def _save_sparse_contact_maps(h5_file, contact_maps, 
                               cm_format='sparse-concat', **kwargs):
     """
@@ -151,6 +150,7 @@ def fraction_of_contacts(cm, ref_cm):
     return 1 - (cm != ref_cm).mean()
 
 def wrap_traj(pdb, dcd, output_dcd):
+    start = time.time()
     u = mda.Universe(pdb, dcd)
     protein = u.select_atoms("protein or resname UNK")
     water = u.select_atoms("resname WAT")
@@ -166,6 +166,8 @@ def wrap_traj(pdb, dcd, output_dcd):
     with mda.Writer(output_dcd, u.atoms.n_atoms) as w:
         for _ in u.trajectory:
             w.write(u.atoms)
+
+    print("wrap_traj time", time.time() - start)
 
 def _traj_to_dset(topology, ref_topology, traj_file,
                   save_file=None,
@@ -361,6 +363,7 @@ def _traj_to_dset(topology, ref_topology, traj_file,
     # end time
     end_time = time.time()
     duration = end_time - start_time
+    print("total time in _traj_to_dset", duration)
 
     #move wrapped_traj back to parallel file system
     shutil.move(wrapped_traj_file, traj_file)
