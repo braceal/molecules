@@ -4,7 +4,7 @@ import click
 from os.path import join
 
 # torch stuff
-from torchsummary import summary
+#from torchsummary import summary
 import torch
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
