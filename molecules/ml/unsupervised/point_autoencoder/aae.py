@@ -78,9 +78,15 @@ class Generator(nn.Module):
         if init_weights is None:
             self.model.apply(_init_weights)
         elif init_weights.endswith('.pt'):
-            checkpoint = torch.load(init_weights, map_location='cpu')
-            self.load_state_dict(checkpoint['generator_state_dict'])
-        
+            retry = 0
+            while retry < 5:
+                try:
+                    checkpoint = torch.load(init_weights, map_location='cpu')
+                    self.load_state_dict(checkpoint['generator_state_dict'])
+                    return
+                except RuntimeError:
+                    retry += 1
+
     def save_weights(self, path):
         torch.save(self.state_dict(), path)
         
@@ -154,8 +160,14 @@ class Discriminator(nn.Module):
         if init_weights is None:
             self.model.apply(_init_weights)
         elif init_weights.endswith('.pt'):
-            checkpoint = torch.load(init_weights, map_location='cpu')
-            self.load_state_dict(checkpoint['discriminator_state_dict'])
+            retry = 0
+            while retry < 5:
+                try:
+                    checkpoint = torch.load(init_weights, map_location='cpu')
+                    self.load_state_dict(checkpoint['discriminator_state_dict'])
+                    return
+                except RuntimeError:
+                    retry += 1
     
     def save_weights(self, path):
         torch.save(self.state_dict(), path)
@@ -260,9 +272,15 @@ class Encoder(nn.Module):
             self.mu_layer.apply(_init_weights)
             self.std_layer.apply(_init_weights)
         elif init_weights.endswith('.pt'):
-            checkpoint = torch.load(init_weights, map_location='cpu')
-            self.load_state_dict(checkpoint['encoder_state_dict'])
-        
+            retry = 0
+            while retry < 5:
+                try:
+            	    checkpoint = torch.load(init_weights, map_location='cpu')
+            	    self.load_state_dict(checkpoint['encoder_state_dict'])
+	            return
+                except RuntimeError:
+                    retry += 1       
+
     def save_weights(self, path):
         torch.save(self.state_dict(), path)
         
