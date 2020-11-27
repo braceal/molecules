@@ -86,6 +86,7 @@ class Generator(nn.Module):
                     return
                 except RuntimeError:
                     retry += 1
+                    time.sleep(2)
 
     def save_weights(self, path):
         torch.save(self.state_dict(), path)
@@ -168,6 +169,7 @@ class Discriminator(nn.Module):
                     return
                 except RuntimeError:
                     retry += 1
+                    time.sleep(2)
     
     def save_weights(self, path):
         torch.save(self.state_dict(), path)
@@ -275,11 +277,12 @@ class Encoder(nn.Module):
             retry = 0
             while retry < 5:
                 try:
-            	    checkpoint = torch.load(init_weights, map_location='cpu')
-            	    self.load_state_dict(checkpoint['encoder_state_dict'])
-	            return
+                    checkpoint = torch.load(init_weights, map_location='cpu')
+                    self.load_state_dict(checkpoint['encoder_state_dict'])
+                    return
                 except RuntimeError:
-                    retry += 1       
+                    retry += 1
+                    time.sleep(2)       
 
     def save_weights(self, path):
         torch.save(self.state_dict(), path)
