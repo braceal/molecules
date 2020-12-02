@@ -88,6 +88,8 @@ class Generator(nn.Module):
         self.load_state_dict(torch.load(path))
 
     def forward(self, input):
+        #output = self.model(input)
+        # TODO: test without squeeze
         output = self.model(input.squeeze())
         output = output.view(-1, (3 + self.num_features), self.num_points)
         return output
@@ -602,6 +604,7 @@ class AAE3d(object):
         handle.train()
         train_loss_d = 0.
         train_loss_eg = 0.
+        times = []
         for batch_idx, token in enumerate(train_loader):
             
             if self.verbose:
@@ -655,6 +658,17 @@ class AAE3d(object):
             # optimizer step
             train_loss_eg += loss_eg.item()
             self.optimizer_eg.step()
+
+            # Check memory footprint
+            #print("memory allocation")
+            #print(torch.cuda.memory_allocated()/1024**3)
+            #print(torch.cuda.memory_summary())
+
+            # Timing
+            times.append(time.time() - start)
+            if len(times) == 10:
+                print(f"Avg time per 10 batches: {sum(times) / len(times)}")
+                times = []
 
             if callbacks:
                 logs['train_loss_d'] = loss_d.item()

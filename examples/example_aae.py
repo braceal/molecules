@@ -313,7 +313,32 @@ def main(input_path, dataset_name, rmsd_name, fnc_name,
         
         # watch model
         wandb.watch(aae.model)
-    
+
+    # Plotting graph
+    #X, rmsd, fnc, index = next(iter(train_loader))
+    #X = X.to(torch.device("cuda:0"))
+    #code, mu, logvar = aae.model.encoder(X)
+    #torch.onnx.export(
+    #        aae.model.generator,
+    #        code.squeeze(),
+    #        "aae_generator_3375.onnx",
+    #        input_names=["code"],
+    #        output_names=["Point Cloud"],
+    #)
+    #torch.onnx.export(
+    #        aae.model.discriminator,
+    #        code.squeeze(),
+    #        "aae_discriminator_3375.onnx",
+    #        input_names=["code"],
+    #        output_names=["logit"],
+    #)
+
+
+    #from torch.utils.tensorboard import SummaryWriter
+    #writer = SummaryWriter()
+    #writer.add_graph(aae.model, X.to(torch.device("cuda:0")))
+    #writer.close()
+
     # Optional callbacks
     loss_callback = LossCallback(join(model_path, 'loss.json'),
                                  wandb_config=wandb_config,

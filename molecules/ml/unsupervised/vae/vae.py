@@ -336,9 +336,9 @@ class VAE:
         logs : dict
             Filled with data for callbacks
         """
-
         self.model.train()
         train_loss = 0.
+        times = []
         for batch_idx, token in enumerate(train_loader):
 
             data, rmsd, fnc, index = token
@@ -364,6 +364,19 @@ class VAE:
             self.gscaler.scale(loss).backward()
             self.gscaler.step(self.optimizer)
             self.gscaler.update()
+
+            # Check memory footprint
+            #print("encoder memory")
+            #print(torch.cuda.memory_allocated()/1024**3)
+            #print(torch.cuda.memory_summary(self.device.encoder))
+            #print("decoder memory")
+            #print(torch.cuda.memory_summary(self.device.decoder))
+
+            # Timing
+            times.append(time.time() - start)
+            if len(times) == 10:
+                print(f"Avg time per 10 batches: {sum(times) / len(times)}")
+                times = []
 
             # update loss
             train_loss += loss.item()

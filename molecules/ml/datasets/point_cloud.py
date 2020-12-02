@@ -132,6 +132,7 @@ class PointCloudDataset(Dataset):
             point_indices = self.rng.choice(self.num_points_total, size = self.num_points,
                                             replace = False, shuffle = False)
 
+            point_indices = list(sorted(point_indices))
             # read
             self.token[0, ...] = self.dset[index, :, point_indices]
         else:            

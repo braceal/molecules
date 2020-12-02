@@ -318,7 +318,28 @@ def main(input_path, dataset_name, rmsd_name, fnc_name, out_path, checkpoint, re
             
         # watch model
         wandb.watch(vae.model)
-    
+   
+    #X, rmsd, fnc, index = next(iter(train_loader))
+    #X = X.to(torch.device("cuda:0"))
+    #mu, logvar = vae.model.encoder(X)
+    #torch.onnx.export(
+    #        vae.model.decoder,
+    #        mu.to(torch.device("cuda:1")),
+    #        "vae_decoder_3375.onnx",
+    #        input_names=["code"],
+    #        output_names=["Contact Map"],
+    #        export_params=False,
+            #use_external_data_format=True,
+    #)
+    #torch.onnx.export(
+    #        vae.model.encoder,
+    #        X,
+    #        "vae_encoder_3375.onnx",
+    #        input_names=["Contact Map"],
+    #        output_names=["mu", "logvar"],
+    #        export_params=False,
+    #)
+
     # Optional callbacks
     loss_callback = LossCallback(join(model_path, 'loss.json'),
                                  wandb_config=wandb_config,
