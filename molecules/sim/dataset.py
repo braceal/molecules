@@ -476,7 +476,7 @@ def traj_to_dset(topology, ref_topology, traj_files, save_file,
 
     # Set num_workers to max necessary/possible unless specified by user
     if num_workers is None:
-        num_workers = min(os.cpu_count(), len(traj_files_local))
+        num_workers = min(os.cpu_count()//int(os.environ.get('OMP_NUM_THREADS', 4)), len(traj_files_local))
 
     if verbose:
         print(f'Using {num_workers} workers to process {len(traj_files_local)} traj files')

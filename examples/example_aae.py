@@ -18,8 +18,8 @@ from mpi4py import MPI
 # molecules stuff
 from molecules.ml.hyperparams import OptimizerHyperparams
 from molecules.ml.callbacks import (LossCallback, CheckpointCallback,
-                                    SaveEmbeddingsCallback, TSNEPlotCallback,
-                                    LatspaceStatisticsCallback)
+                                    SaveEmbeddingsCallback, TSNEPlotCallback)
+                                    #LatspaceStatisticsCallback)
 from molecules.ml.unsupervised.point_autoencoder import AAE3d, AAE3dHyperparams
 
 def parse_dict(ctx, param, value):
@@ -337,10 +337,10 @@ def main(input_path, dataset_name, rmsd_name, fnc_name,
                                      mpi_comm=comm)
 
     
-    latspace_callback = LatspaceStatisticsCallback(out_dir = join(model_path, 'embeddings'),
-                                                   sample_interval = sample_interval,
-                                                   wandb_config = wandb_config,
-                                                   mpi_comm = comm)
+    #latspace_callback = LatspaceStatisticsCallback(out_dir = join(model_path, 'embeddings'),
+    #                                               sample_interval = sample_interval,
+    #                                               wandb_config = wandb_config,
+    #                                               mpi_comm = comm)
 
     # Train model with callbacks
     callbacks = [loss_callback, checkpoint_callback, save_callback,

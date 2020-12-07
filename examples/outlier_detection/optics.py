@@ -508,7 +508,10 @@ def write_rewarded_pdbs(rewarded_inds, scores, pdb_out_path, data_path, max_retr
                 u = mda.Universe(sim_pdb, traj_file)
                 load_trajec = time.time() - load_trajec
                 #print("Load trajectory time: {}s".format(load_trajec))
-                ligand_id = os.path.basename(sim_pdb).split('_')[1]
+                try:
+                    ligand_id = os.path.basename(sim_pdb).split('_')[1]
+                except IndexError as e:
+                    ligand_id = None
                 break
             except IOError as e:
                 retry_count += 1
@@ -517,7 +520,10 @@ def write_rewarded_pdbs(rewarded_inds, scores, pdb_out_path, data_path, max_retr
             save_trajec = time.time()
             orders += list(item["order"])
             for frame in item["rewarded_inds"]:
-                out_pdb = os.path.abspath(join(pdb_out_path, f'{sim_id}_{ligand_id}_{frame:06}.pdb'))
+                if ligand_id:
+                    out_pdb = os.path.abspath(join(pdb_out_path, f'{sim_id}_{ligand_id}_{frame:06}.pdb'))
+                else:
+                    out_pdb = os.path.abspath(join(pdb_out_path, f'{sim_id}_{frame:06}.pdb'))
                 with mda.Writer(out_pdb) as writer:
                     # Write a single coordinate set to a PDB file
                     writer._update_frame(u)
