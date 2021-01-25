@@ -18,6 +18,7 @@ class SaveEmbeddingsCallback(Callback):
         interval: int = 1,
         sample_interval: int = 20,
         embeddings_dset_name: str = "embeddings",
+        indices_dset_name: str = "indices",
         scalar_dset_names: List[str] = ["rmsd", "fnc"],
         mpi_comm=None,
     ):
@@ -32,6 +33,8 @@ class SaveEmbeddingsCallback(Callback):
             Plots every sample_interval'th point in the data set
         embeddings_dset_name: str
             Name of the embeddings dataset in the HDF5 file.
+        indices_dset_name: str
+            Name of the indices dataset in the HDF5 file.
         scalar_dset_names : List[str]
             List of scalar dataset names inside HDF5 file.
         mpi_comm : mpi communicator for distributed training
@@ -41,6 +44,7 @@ class SaveEmbeddingsCallback(Callback):
         self.out_dir = Path(out_dir)
         self.sample_interval = sample_interval
         self.embeddings_dset_name = embeddings_dset_name
+        self.indices_dset_name = indices_dset_name
         self.scalar_dset_names = scalar_dset_names
 
         if self.is_eval_node:
@@ -49,6 +53,7 @@ class SaveEmbeddingsCallback(Callback):
     def on_validation_begin(self, epoch, logs):
         self.sample_counter = 0
         self.embeddings = []
+        self.indices = []
         self.scalars = {name: [] for name in self.scalar_dset_names}
 
     def on_validation_batch_end(self, batch, epoch, logs, **kwargs):
@@ -65,6 +70,7 @@ class SaveEmbeddingsCallback(Callback):
             if (self.sample_counter + idx) % self.sample_interval == 0:
                 # use a singleton slice to keep dimensions intact
                 self.embeddings.append(mu[idx : idx + 1].detach().cpu().numpy())
+                self.indices.append(index[idx : idx + 1].detach().cpu().numpy())
                 for name, data in scalars:
                     self.scalars[name].append(
                         data[idx : idx + 1].detach().cpu().numpy()
@@ -86,6 +92,7 @@ class SaveEmbeddingsCallback(Callback):
 
         # prepare data
         embeddings = np.concatenate(self.embeddings, axis=0).astype(np.float32)
+        indices = np.concatenate(self.indices, axis=0).astype(np.float32)
         scalars = {
             name: np.concatenate(dset, axis=0).astype(np.float32)
             for name, dset in self.scalars.items()
@@ -95,6 +102,7 @@ class SaveEmbeddingsCallback(Callback):
         if self.comm is not None:
             # gather data
             embeddings_gather = self.comm.gather(embeddings, root=0)
+            indices_gather = self.comm.gather(indices, root=0)
             scalars_gather = {
                 name: self.comm.gather(scalar, root=0)
                 for scalar, name in scalars.items()
@@ -102,6 +110,7 @@ class SaveEmbeddingsCallback(Callback):
             # concat
             if self.is_eval_node:
                 embeddings = np.concatenate(embeddings_gather, axis=0)
+                indices = np.concatenate(indices_gather, axis=0)
                 scalars = {
                     name: np.concatenate(scalar, axis=0)
                     for name, scalar in scalars_gather.items()
@@ -109,13 +118,13 @@ class SaveEmbeddingsCallback(Callback):
 
         # Save embeddings to disk
         if self.is_eval_node and (self.sample_interval > 0):
-            self.save_embeddings(epoch, embeddings, scalars, logs)
+            self.save_embeddings(epoch, embeddings, indices, scalars, logs)
 
         # All other nodes wait for node 0 to save
         if self.comm is not None:
             self.comm.barrier()
 
-    def save_embeddings(self, epoch, embeddings, scalars, logs):
+    def save_embeddings(self, epoch, embeddings, indices, scalars, logs):
         # Create embedding file path and store in logs for downstream callbacks
         time_stamp = time.strftime(f"embeddings-epoch-{epoch}-%Y%m%d-%H%M%S.h5")
         embeddings_path = self.out_dir.joinpath(time_stamp).as_posix()
@@ -124,5 +133,6 @@ class SaveEmbeddingsCallback(Callback):
         # Write embedding data to disk
         with h5py.File(embeddings_path, "w", libver="latest", swmr=False) as f:
             f[self.embeddings_dset_name] = embeddings[...]
+            f[self.indices_dset_name] = indices[...]
             for name, dset in scalars.items():
                 f[name] = dset[...]
