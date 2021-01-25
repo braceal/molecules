@@ -2,12 +2,12 @@ import os
 import time
 import torch
 from .callback import Callback
-import torch.distributed as dist
+
 
 class CheckpointCallback(Callback):
-    def __init__(self, interval=1,
-                 out_dir=os.path.join('.', 'checkpoints'),
-                 mpi_comm=None):
+    def __init__(
+        self, interval=1, out_dir=os.path.join(".", "checkpoints"), mpi_comm=None
+    ):
         """
         Checkpoint interface for saving dictionary objects to disk
         during training. Typically used to save model state_dict
@@ -37,36 +37,36 @@ class CheckpointCallback(Callback):
         """Saves optimizer state and encoder/decoder weights."""
 
         # create new dictionary
-        checkpoint = {'epoch': epoch}
+        checkpoint = {"epoch": epoch}
 
         # optimizer
         if "optimizer" in logs:
-            checkpoint['optimizer_state_dict'] = logs['optimizer'].state_dict()
+            checkpoint["optimizer_state_dict"] = logs["optimizer"].state_dict()
 
         if "optimizer_d" in logs:
-            checkpoint['optimizer_d_state_dict'] = logs['optimizer_d'].state_dict()
+            checkpoint["optimizer_d_state_dict"] = logs["optimizer_d"].state_dict()
 
         if "optimizer_eg" in logs:
-            checkpoint['optimizer_eg_state_dict'] = logs['optimizer_eg'].state_dict()
+            checkpoint["optimizer_eg_state_dict"] = logs["optimizer_eg"].state_dict()
 
         # model parameter
-        handle = logs['model']
+        handle = logs["model"]
         # just to be safe here
         if isinstance(handle, torch.nn.parallel.DistributedDataParallel):
             handle = handle.module
-            
-        if hasattr(handle, 'encoder'):
-            checkpoint['encoder_state_dict'] = handle.encoder.state_dict()
 
-        if hasattr(handle, 'decoder'):
-            checkpoint['decoder_state_dict'] = handle.decoder.state_dict()
+        if hasattr(handle, "encoder"):
+            checkpoint["encoder_state_dict"] = handle.encoder.state_dict()
 
-        if hasattr(handle, 'generator'):
-            checkpoint['generator_state_dict'] = handle.generator.state_dict()
+        if hasattr(handle, "decoder"):
+            checkpoint["decoder_state_dict"] = handle.decoder.state_dict()
 
-        if hasattr(handle, 'discriminator'):
-            checkpoint['discriminator_state_dict'] = handle.discriminator.state_dict()
+        if hasattr(handle, "generator"):
+            checkpoint["generator_state_dict"] = handle.generator.state_dict()
 
-        time_stamp = time.strftime(f'epoch-{epoch}-%Y%m%d-%H%M%S.pt')
+        if hasattr(handle, "discriminator"):
+            checkpoint["discriminator_state_dict"] = handle.discriminator.state_dict()
+
+        time_stamp = time.strftime(f"epoch-{epoch}-%Y%m%d-%H%M%S.pt")
         path = os.path.join(self.out_dir, time_stamp)
         torch.save(checkpoint, path)
