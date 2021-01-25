@@ -61,8 +61,8 @@ class SaveEmbeddingsCallback(Callback):
             return
         if epoch % self.interval != 0:
             return
-        mu, scalars, index = logs.get("mu"), logs.get("scalars"), logs.get("index")
-        if (mu is None) or (index is None):
+        mu, sample = logs.get("mu"), logs.get("sample")
+        if (mu is None) or (sample is None):
             return
 
         # decide what to store
@@ -70,10 +70,12 @@ class SaveEmbeddingsCallback(Callback):
             if (self.sample_counter + idx) % self.sample_interval == 0:
                 # use a singleton slice to keep dimensions intact
                 self.embeddings.append(mu[idx : idx + 1].detach().cpu().numpy())
-                self.indices.append(index[idx : idx + 1].detach().cpu().numpy())
-                for name, data in scalars:
+                self.indices.append(
+                    sample["index"][idx : idx + 1].detach().cpu().numpy()
+                )
+                for name in self.scalar_dset_names:
                     self.scalars[name].append(
-                        data[idx : idx + 1].detach().cpu().numpy()
+                        sample[name][idx : idx + 1].detach().cpu().numpy()
                     )
 
         # increase sample counter
