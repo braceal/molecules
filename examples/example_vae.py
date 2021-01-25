@@ -349,9 +349,8 @@ def main(
     train_dataset = ContactMapDataset(
         input_path,
         dataset_name,
-        rmsd_name,
-        fnc_name,
-        input_shape,
+        scalar_dset_names=[rmsd_name, fnc_name],
+        shape=input_shape,
         split="train",
         cm_format=cm_format,
     )
@@ -377,9 +376,8 @@ def main(
     valid_dataset = ContactMapDataset(
         input_path,
         dataset_name,
-        rmsd_name,
-        fnc_name,
-        input_shape,
+        scalar_dset_names=[rmsd_name, fnc_name],
+        shape=input_shape,
         split="valid",
         cm_format=cm_format,
     )
@@ -452,6 +450,8 @@ def main(
     save_callback = SaveEmbeddingsCallback(
         out_dir=join(model_path, "embeddings"),
         interval=embed_interval,
+        embeddings_dset_name="embeddings",
+        scalar_dset_names=["rmsd", "fnc"],
         sample_interval=sample_interval,
         mpi_comm=comm,
     )
@@ -461,6 +461,7 @@ def main(
         out_dir=join(model_path, "embeddings"),
         projection_type="3d",
         target_perplexity=100,
+        embeddings_dset_name="embeddings",
         colors=["rmsd", "fnc"],
         interval=tsne_interval,
         wandb_config=wandb_config,
