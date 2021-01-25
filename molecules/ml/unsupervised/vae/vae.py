@@ -1,4 +1,5 @@
 import time
+from typing import Tuple
 import torch
 from torch import nn
 import torch.distributed as dist
@@ -6,6 +7,7 @@ from torch.nn import functional as F
 from collections import namedtuple
 from .resnet import ResnetVAEHyperparams
 from .symmetric import SymmetricVAEHyperparams
+from .basic import BasicVAEHyperparams
 from molecules.ml.hyperparams import OptimizerHyperparams, get_optimizer
 import torch.cuda.amp as amp
 
@@ -34,6 +36,12 @@ class VAEModel(nn.Module):
             self.decoder = ResnetDecoder(
                 self.encoder.match_shape, input_shape, hparams, init_weights
             )
+
+        elif isinstance(hparams, BasicVAEHyperparams):
+            from .basic import BasicEncoder, BasicDecoder
+
+            self.encoder = BasicEncoder(input_shape, hparams, init_weights)
+            self.decoder = BasicDecoder(input_shape, hparams, init_weights)
 
         else:
             raise TypeError(f"Invalid hparams type: {type(hparams)}.")
@@ -153,7 +161,7 @@ class VAE:
 
     def __init__(
         self,
-        input_shape,
+        input_shape: Tuple[int],
         hparams=SymmetricVAEHyperparams(),
         optimizer_hparams=OptimizerHyperparams(),
         loss=None,

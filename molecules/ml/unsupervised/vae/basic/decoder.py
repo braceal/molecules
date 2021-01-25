@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Tuple
 import torch
 from torch import nn
 from math import isclose
@@ -35,7 +35,7 @@ def reversedzip(*iterables):
 class BasicDecoder(nn.Module):
     def __init__(
         self,
-        output_dim: int,
+        output_dim: Tuple[int],
         hparams: BasicVAEHyperparams,
         init_weights: Optional[str] = None,
     ):
@@ -44,7 +44,7 @@ class BasicDecoder(nn.Module):
         assert isinstance(hparams, BasicVAEHyperparams)
         hparams.validate()
 
-        self.output_dim = output_dim
+        self.output_dim = output_dim[0]
         self.hparams = hparams
 
         self.decoder = nn.Sequential(*self._affine_layers())

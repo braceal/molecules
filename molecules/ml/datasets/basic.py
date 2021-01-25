@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Union
+from typing import Union, List
 import h5py
 import torch
 import numpy as np
@@ -18,6 +18,7 @@ class BasicDataset(Dataset):
         self,
         path: PathLike,
         dataset_name: str,
+        scalar_dset_names: List[str],
         split_ptc: float = 0.8,
         split: str = "train",
         seed: int = 333,
@@ -30,6 +31,10 @@ class BasicDataset(Dataset):
 
         dataset_name : str
             Path to contact maps in HDF5 file.
+
+        scalar_dset_names : List[str]
+            List of scalar dataset names inside HDF5 file to be passed
+            to training logs.
 
         split_ptc : float
             Percentage of total data to be used as training set.
@@ -49,6 +54,7 @@ class BasicDataset(Dataset):
 
         self._file_path = Path(path)
         self._dataset_name = dataset_name
+        self._scalar_dset_names = scalar_dset_names
         self._initialized = False
 
         # get lengths and paths
@@ -73,14 +79,24 @@ class BasicDataset(Dataset):
 
         # Only happens once. Need to open h5 file in current process
         if not self._initialized:
-            self.h5_file = self._open_h5_file()
-            self.dset = self.h5_file[self._dataset_name]
+            self._h5_file = self._open_h5_file()
+            self._dset = self._h5_file[self._dataset_name]
+            # Load scalar dsets
+            self._scalar_dsets = {
+                name: self._h5_file[name] for name in self._scalar_dset_names
+            }
             self._initialized = True
 
         # Get real index
         index = self.indices[idx]
 
+        sample = {}
         # Select data format and return data at idx
-        data = torch.Tensor(self.dset[index, ...])
+        sample["X"] = torch.Tensor(self._dset[index, ...])
+        # Add index into dataset to sample
+        sample["index"] = torch.tensor(index, requires_grad=False)
+        # Add scalars for logging
+        for name, dset in self._scalar_dsets.items():
+            sample[name] = torch.tensor(dset[index], requires_grad=False)
 
-        return data, index
+        return sample

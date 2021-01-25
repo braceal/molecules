@@ -2,8 +2,10 @@ import time
 import h5py
 import numpy as np
 from pathlib import Path
-from typing import List
+from typing import List, Union
 from .callback import Callback
+
+PathLike = Union[str, Path]
 
 
 class SaveEmbeddingsCallback(Callback):
@@ -14,7 +16,7 @@ class SaveEmbeddingsCallback(Callback):
 
     def __init__(
         self,
-        out_dir: str,
+        out_dir: PathLike,
         interval: int = 1,
         sample_interval: int = 20,
         embeddings_dset_name: str = "embeddings",

@@ -1,8 +1,10 @@
-import os
-from typing import List
+from pathlib import Path
+from typing import List, Union
 from .callback import Callback
 from molecules.plot import plot_tsne
 import concurrent.futures as cf
+
+PathLike = Union[str, Path]
 
 
 class TSNEPlotCallback(Callback):
@@ -12,7 +14,7 @@ class TSNEPlotCallback(Callback):
 
     def __init__(
         self,
-        out_dir: str,
+        out_dir: PathLike,
         interval: int = 1,
         embeddings_dset_name: str = "embeddings",
         colors: List[str] = ["rmsd", "fnc"],
@@ -45,10 +47,10 @@ class TSNEPlotCallback(Callback):
         super().__init__(interval, mpi_comm)
 
         if self.is_eval_node:
-            os.makedirs(out_dir, exist_ok=True)
+            Path(out_dir).mkdir(exist_ok=True)
 
             self.tsne_kwargs = {
-                "out_dir": out_dir,
+                "out_dir": str(out_dir),
                 "wandb_config": wandb_config,
                 "embeddings_dset_name": embeddings_dset_name,
                 "colors": colors,

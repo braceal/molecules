@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Tuple
 import torch
 from torch import nn
 from math import isclose
@@ -9,7 +9,7 @@ from molecules.ml.unsupervised.vae.basic import BasicVAEHyperparams
 class BasicEncoder(nn.Module):
     def __init__(
         self,
-        input_dim: int,
+        input_dim: Tuple[int],
         hparams: BasicVAEHyperparams,
         init_weights: Optional[str] = None,
     ):
@@ -19,7 +19,7 @@ class BasicEncoder(nn.Module):
         hparams.validate()
 
         self.hparams = hparams
-        self.input_dim = input_dim  # D dimensions
+        self.input_dim = input_dim[0]  # D dimensions
 
         self.encoder = nn.Sequential(*self._affine_layers())
 
@@ -65,7 +65,6 @@ class BasicEncoder(nn.Module):
 
         layers = []
 
-        # First layer gets flattened convolutional output
         in_features = self.input_dim
 
         for width, dropout in zip(
