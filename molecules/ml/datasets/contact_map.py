@@ -150,8 +150,8 @@ class ContactMapDataset(Dataset):
             # Set shape to the last 2 elements of self.shape.
             # Handles (1, W, H) and (W, H)
             data = torch.sparse.FloatTensor(indices, values, self.shape[-2:]).to_dense()
+            data = data.view(self.shape)
 
-        # Add example to sample
         sample = {"X": data}
         # Add index into dataset to sample
         sample["index"] = torch.tensor(index, requires_grad=False)
