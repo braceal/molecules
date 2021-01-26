@@ -1,15 +1,21 @@
 # Helper function to return product of elements in a tuple
 from functools import reduce
-prod = lambda tup: reduce((lambda x, y: x * y), tup)
 
-def conv_output_dim(input_dim, kernel_size, stride, padding,
-                    transpose=False):
+# TODO: These pytorch functions should be moved elsewhere
+from torch import nn
+
+
+def prod(tup):
+    return reduce((lambda x, y: x * y), tup)
+
+
+def conv_output_dim(input_dim, kernel_size, stride, padding, transpose=False):
     """
     Parameters
     ----------
     input_dim : int
         input size. may include padding
-    
+
     kernel_size : int
         filter size
 
@@ -26,18 +32,20 @@ def conv_output_dim(input_dim, kernel_size, stride, padding,
         #       may have bugs for transpose layers
         output_padding = 1 if stride > 1 else 0
         output_padding = 0
-        return (input_dim - 1) * stride + kernel_size - 2*padding + output_padding
+        return (input_dim - 1) * stride + kernel_size - 2 * padding + output_padding
 
-    return (2*padding + input_dim - kernel_size) // stride + 1
+    return (2 * padding + input_dim - kernel_size) // stride + 1
 
-def conv_output_shape(input_dim, kernel_size, stride, padding,
-                      num_filters, transpose=False, dim=2):
+
+def conv_output_shape(
+    input_dim, kernel_size, stride, padding, num_filters, transpose=False, dim=2
+):
     """
     Parameters
     ----------
     input_dim : tuple
         (height, width) dimensions for convolution input
-    
+
     kernel_size : int
         filter size
 
@@ -64,15 +72,18 @@ def conv_output_shape(input_dim, kernel_size, stride, padding,
     if isinstance(input_dim, int):
         input_dim, padding = [input_dim], [padding]
 
-    dims = [conv_output_dim(d, kernel_size, stride, p, transpose)
-            for d, p in zip(input_dim, padding)]
+    dims = [
+        conv_output_dim(d, kernel_size, stride, p, transpose)
+        for d, p in zip(input_dim, padding)
+    ]
 
     if dim == 1:
         return num_filters, dims[0]
     if dim == 2:
         return num_filters, dims[0], dims[1]
 
-    raise ValueError(f'Invalid dim: {dim}')
+    raise ValueError(f"Invalid dim: {dim}")
+
 
 def _same_padding(input_dim, kernel_size, stride):
     """
@@ -90,13 +101,14 @@ def _same_padding(input_dim, kernel_size, stride):
     # Then input_dim - alpha is the pad
     # i <= (input_dim - kernel_size) // stride
     for i in reversed(range((input_dim - kernel_size) // stride + 1)):
-        alpha = kernel_size + i*stride
+        alpha = kernel_size + i * stride
         if alpha <= input_dim:
             # TODO: see symmetric decoder
             # adjustment = int(input_dim % 2 == 0)
-            return input_dim - alpha # + adjustment
-        
-    raise Exception('No padding found')
+            return input_dim - alpha  # + adjustment
+
+    raise Exception("No padding found")
+
 
 def same_padding(input_dim, kernel_size, stride):
     """
@@ -128,9 +140,6 @@ def same_padding(input_dim, kernel_size, stride):
     return h_pad, w_pad
 
 
-# TODO: These pytorch functions should be moved elsewhere
-from torch import nn
-
 # TODO: conider moving this into the HyperParams class
 #       could make base classes for ModelArchHyperParams
 #       which handles layes and can return pytorch layer
@@ -144,13 +153,16 @@ def get_activation(activation):
         type of activation e.g. 'ReLU', etc
 
     """
-    if activation == 'ReLU':
+    if activation == "ReLU":
         return nn.ReLU()
-    if activation == 'Sigmoid':
+    if activation == "Sigmoid":
         return nn.Sigmoid()
-    if activation == 'None':
+    if activation == "Tanh":
+        return nn.Tanh()
+    if activation == "None":
         return nn.Identity()
-    raise ValueError(f'Invalid activation type: {activation}')
+    raise ValueError(f"Invalid activation type: {activation}")
+
 
 # TODO: generalize this more.
 def _init_weights(m):
