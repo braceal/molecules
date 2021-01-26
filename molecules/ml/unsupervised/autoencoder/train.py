@@ -8,6 +8,7 @@ import wandb
 import torch
 import torch.nn
 from torch.utils.data import DataLoader
+from torch.nn import functional as F
 
 # molecules stuff
 from molecules.ml.datasets import BasicDataset
@@ -46,6 +47,20 @@ def setup_wandb(
     return wandb_config
 
 
+def select_loss_function(loss_function: str):
+    if loss_function == "bce":
+
+        def bce_loss_function(recon_x, x):
+            BCE = F.binary_cross_entropy(recon_x, x, reduction="sum")
+            return BCE
+
+        return bce_loss_function
+    elif loss_function == "mse":
+        return torch.nn.MSELoss()
+    else:
+        raise ValueError(f"loss function {loss_function} not supported")
+
+
 def main(cfg: AutoEncoderModelConfig):
 
     # Create output directory
@@ -75,6 +90,8 @@ def main(cfg: AutoEncoderModelConfig):
         name=cfg.optimizer_name, hparams={"lr": cfg.optimizer_lr}
     )
     optimizer = get_optimizer(model.parameters(), optimizer_hparams)
+
+    criterion = select_loss_function(cfg.loss_function)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -168,6 +185,7 @@ def main(cfg: AutoEncoderModelConfig):
         device,
         train_loader,
         valid_loader,
+        criterion,
         epochs=cfg.epochs,
         callbacks=callbacks,
         verbose=True,

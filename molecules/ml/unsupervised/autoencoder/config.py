@@ -42,6 +42,7 @@ class AutoEncoderModelConfig(BaseSettings):
     affine_dropouts: List[float] = [0.0]
     activation: str = "ReLU"
     output_activation: str = "Sigmoid"
+    loss_function: str = "mse"
 
     # Training settings
     # Saves embeddings every embed_interval'th epoch

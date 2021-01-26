@@ -3,7 +3,6 @@ import time
 import torch
 import torch.optim
 from torch import nn
-from torch.nn import functional as F
 from math import isclose
 from molecules.ml.unsupervised.utils import get_activation, _init_weights
 from molecules.ml.unsupervised.autoencoder.hyperparams import AutoEncoderHyperparams
@@ -248,13 +247,16 @@ def _load_checkpoint(path: str, model: AutoEncoder, optimizer: torch.optim.Optim
     return cp["epoch"]
 
 
-def loss_function(recon_x, x):
-    BCE = F.binary_cross_entropy(recon_x, x, reduction="sum")
-    return BCE
-
-
 def _train(
-    model, optimizer, device, train_loader, epoch, callbacks, logs, verbose: bool = True
+    model,
+    optimizer,
+    device,
+    train_loader,
+    criterion,
+    epoch,
+    callbacks,
+    logs,
+    verbose: bool = True,
 ):
     """
     Train for 1 epoch
@@ -293,7 +295,7 @@ def _train(
 
         # forward
         recon_batch = model(data)
-        loss = loss_function(recon_batch, data)
+        loss = criterion(recon_batch, data)
 
         # backward
         optimizer.zero_grad()
@@ -331,7 +333,7 @@ def _train(
         print("====> Epoch: {} Average loss: {:.4f}".format(epoch, train_loss_ave))
 
 
-def _validate(model, device, valid_loader, epoch, callbacks, logs, verbose):
+def _validate(model, device, valid_loader, criterion, epoch, callbacks, logs, verbose):
     """
     Test model on validation set.
 
@@ -360,7 +362,7 @@ def _validate(model, device, valid_loader, epoch, callbacks, logs, verbose):
                 logs["sample"] = sample
 
             recon_batch = model(data)
-            loss = loss_function(recon_batch, data)
+            loss = criterion(recon_batch, data)
             valid_loss += loss.item()
 
             if callbacks:
@@ -391,6 +393,7 @@ def train(
     device,
     train_loader,
     valid_loader,
+    criterion,
     epochs=1,
     checkpoint=None,
     callbacks=[],
@@ -437,8 +440,20 @@ def train(
         for callback in callbacks:
             callback.on_epoch_begin(epoch, logs)
 
-        _train(model, optimizer, device, train_loader, epoch, callbacks, logs, verbose)
-        _validate(model, device, valid_loader, epoch, callbacks, logs, verbose)
+        _train(
+            model,
+            optimizer,
+            device,
+            train_loader,
+            criterion,
+            epoch,
+            callbacks,
+            logs,
+            verbose,
+        )
+        _validate(
+            model, device, valid_loader, epoch, criterion, callbacks, logs, verbose
+        )
 
         for callback in callbacks:
             callback.on_epoch_end(epoch, logs)
