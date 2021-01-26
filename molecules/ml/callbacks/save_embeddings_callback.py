@@ -63,15 +63,15 @@ class SaveEmbeddingsCallback(Callback):
             return
         if epoch % self.interval != 0:
             return
-        mu, sample = logs.get("mu"), logs.get("sample")
-        if (mu is None) or (sample is None):
+        embeddings, sample = logs.get("embeddings"), logs.get("sample")
+        if (embeddings is None) or (sample is None):
             return
 
         # decide what to store
-        for idx in range(len(mu)):
+        for idx in range(len(embeddings)):
             if (self.sample_counter + idx) % self.sample_interval == 0:
                 # use a singleton slice to keep dimensions intact
-                self.embeddings.append(mu[idx : idx + 1].detach().cpu().numpy())
+                self.embeddings.append(embeddings[idx : idx + 1].detach().cpu().numpy())
                 self.indices.append(
                     sample["index"][idx : idx + 1].detach().cpu().numpy()
                 )
@@ -81,7 +81,7 @@ class SaveEmbeddingsCallback(Callback):
                     )
 
         # increase sample counter
-        self.sample_counter += len(mu)
+        self.sample_counter += len(embeddings)
 
     def on_validation_end(self, epoch, logs):
         if epoch % self.interval != 0:

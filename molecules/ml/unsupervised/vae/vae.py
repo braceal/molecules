@@ -447,7 +447,7 @@ class VAE:
                     ).item()
 
                 if callbacks:
-                    logs["mu"] = mu.detach()
+                    logs["embeddings"] = mu.detach()
 
                 for callback in callbacks:
                     callback.on_validation_batch_end(
