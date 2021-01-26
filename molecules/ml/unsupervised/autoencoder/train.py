@@ -168,8 +168,9 @@ def main(cfg: AutoEncoderModelConfig):
         device,
         train_loader,
         valid_loader,
-        cfg.epochs,
+        epochs=cfg.epochs,
         callbacks=callbacks,
+        verbose=True,
     )
 
     # Save loss history to disk.
