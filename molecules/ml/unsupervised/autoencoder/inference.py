@@ -50,6 +50,6 @@ def generate_embeddings(
         data = sample["X"].to(device)
         embeddings.append(encoder.encode(data).cpu().numpy())
         if i % 100 == 0:
-            print(f"Batch {i * 100}/{len(data_loader)}")
+            print(f"Batch {i}/{len(data_loader) / len(sample)}")
     embeddings = np.concatenate(embeddings)
     return embeddings
