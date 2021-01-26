@@ -42,7 +42,6 @@ class AutoEncoderModelConfig(BaseSettings):
     affine_dropouts: List[float] = [0.0]
     activation: str = "ReLU"
     output_activation: str = "Sigmoid"
-    lambda_rec: float = 1.0
 
     # Training settings
     # Saves embeddings every embed_interval'th epoch
@@ -52,7 +51,7 @@ class AutoEncoderModelConfig(BaseSettings):
     # For saving and plotting embeddings. Saves len(validation_set) / sample_interval points.
     sample_interval: int = 20
     # Specify t-SNE plotting backend (plotly or mpl)
-    plot_backend: str = "mpl"
+    plot_backend: str = "plotly"
     # Number of data loaders for training
     num_data_workers: int = 0
     # Project name for wandb logging
