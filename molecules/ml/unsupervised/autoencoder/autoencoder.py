@@ -452,7 +452,7 @@ def train(
             verbose,
         )
         _validate(
-            model, device, valid_loader, epoch, criterion, callbacks, logs, verbose
+            model, device, valid_loader, criterion, epoch, callbacks, logs, verbose
         )
 
         for callback in callbacks:
