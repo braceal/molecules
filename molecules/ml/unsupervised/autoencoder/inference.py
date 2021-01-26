@@ -1,4 +1,5 @@
 import numpy as np
+from tqdm import tqdm
 from typing import List, Tuple
 from torch.utils.data import DataLoader
 from molecules.ml.datasets import BasicDataset
@@ -46,10 +47,8 @@ def generate_embeddings(
     print("Generating embeddings")
 
     embeddings = []
-    for i, sample in enumerate(data_loader):
+    for sample in tqdm(data_loader):
         data = sample["X"].to(device)
         embeddings.append(encoder.encode(data).cpu().numpy())
-        if i % 100 == 0:
-            print(f"Batch {i}/{len(data_loader) / len(sample)}")
     embeddings = np.concatenate(embeddings)
     return embeddings
