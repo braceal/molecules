@@ -14,7 +14,7 @@ def generate_embeddings(
     device: str,
     batch_size: int,
     dataset_name: str,
-    scalar_dset_names: List[str],
+    scalar_dset_names: List[str] = [],
 ):
 
     hparams = AutoEncoderHyperparams().load(hparams_path)
