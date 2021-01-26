@@ -121,3 +121,46 @@ def parse_h5(path: PathLike, fields: List[str]) -> Dict[str, np.ndarray]:
         for field in fields:
             data[field] = f[field][...]
     return data
+
+
+def unimodal_subsample(
+    data: np.ndarray,
+    peak_left_bound: float,
+    peak_right_bound: float,
+    peak_samples: int,
+) -> np.ndarray:
+    r"""Return indices into `data` with a portion of the peak and both tails.
+
+    Assuming `data` is unimodal, sample at random `peak_samples` from the peak
+    region bound by the interval [`peak_left_bound`, `peak_right_bound`] and
+    all the data from both left and right tails.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Real valued data distribution to sample from.
+    peak_left_bound : float
+        Value of `data` defining the end of the left tail.
+    peak_right_bound : float
+        Value of `data` defining the start of the right tail.
+    peak_samples : int
+        The number of samples to take from the peak.
+
+    Returns
+    -------
+    np.ndarray
+        The indices into `data` of the subsample.
+    """
+    # Define boolean index arrays for each part of the distribution
+    left_tail = data < peak_left_bound
+    right_tail = data > peak_right_bound
+    peak = ~(left_tail | right_tail)
+
+    inds = np.arange(len(data))
+    return np.concatenate(
+        (
+            np.random.choice(inds[peak], size=peak_samples),
+            inds[left_tail],
+            inds[right_tail],
+        )
+    )
