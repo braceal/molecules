@@ -291,14 +291,12 @@ def _train(
         for callback in callbacks:
             callback.on_batch_begin(batch_idx, epoch, logs)
 
-        # reset gradients
-        optimizer.zero_grad()
-
         # forward
         recon_batch = model(data)
         loss = loss_function(recon_batch, data)
 
         # backward
+        optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
