@@ -193,7 +193,7 @@ class Decoder(nn.Module):
                 out_features=self.output_dim,
             )
         )
-        layers.append(act)
+        layers.append(get_activation(self.hparams.output_activation))
 
         return layers
 
