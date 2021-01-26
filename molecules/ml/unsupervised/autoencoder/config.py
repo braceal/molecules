@@ -1,6 +1,14 @@
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from molecules.config import BaseSettings
+
+
+class OptimizerConfig(BaseSettings):
+    class Config:
+        extra = "allow"
+
+    name: str = "Adam"
+    hparams: Dict[str, Any] = {}
 
 
 class AutoEncoderModelConfig(BaseSettings):
@@ -32,9 +40,7 @@ class AutoEncoderModelConfig(BaseSettings):
 
     # Optimizer params
     # PyTorch Optimizer name
-    optimizer_name: str = "Adam"
-    # Learning rate
-    optimizer_lr: float = 0.0001
+    optimizer: OptimizerConfig = OptimizerConfig()
 
     # Model hyperparameters
     latent_dim: int = 64

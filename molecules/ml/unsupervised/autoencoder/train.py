@@ -87,7 +87,8 @@ def main(cfg: AutoEncoderModelConfig):
     )
 
     optimizer_hparams = OptimizerHyperparams(
-        name=cfg.optimizer_name, hparams={"lr": cfg.optimizer_lr}
+        name=cfg.optimizer.name,
+        hparams=cfg.optimizer.hparams,
     )
     optimizer = get_optimizer(model.parameters(), optimizer_hparams)
 
