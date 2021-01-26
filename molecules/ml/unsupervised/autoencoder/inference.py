@@ -43,9 +43,6 @@ def generate_embeddings(
         num_workers=0,
     )
 
-    # Collect embeddings and associated index into simulation trajectory
-    print("Generating embeddings")
-
     embeddings = []
     for sample in tqdm(data_loader):
         data = sample["X"].to(device)
