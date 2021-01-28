@@ -20,7 +20,7 @@ from molecules.ml.callbacks import (
 )
 from molecules.ml.unsupervised.vae import VAE, BasicVAEHyperparams
 
-from .config import BasicVAEModelConfig
+from molecules.ml.unsupervised.vae.basic.config import BasicVAEModelConfig
 
 
 def setup_wandb(
