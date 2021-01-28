@@ -31,8 +31,13 @@ class BasicEncoder(nn.Module):
     def init_weights(self, init_weights: Optional[str]):
         if init_weights is None:
             self.encoder.apply(_init_weights)
-            _init_weights(self.mu)
-            _init_weights(self.logvar)
+            # _init_weights(self.mu)
+            # _init_weights(self.logvar)
+            self.mu.bias.data.fill_(0.0)
+            self.mu.weight.data.fill_(0.0)
+            self.logvar.bias.data.fill_(0.0)
+            self.logvar.weight.data.fill_(0.0)
+
         # Loading checkpoint weights
         elif init_weights.endswith(".pt"):
             checkpoint = torch.load(init_weights, map_location="cpu")
