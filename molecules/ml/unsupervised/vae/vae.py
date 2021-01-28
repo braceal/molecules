@@ -1,5 +1,5 @@
 import time
-import numpy as np
+from typing import Tuple
 import torch
 from torch import nn
 import torch.distributed as dist
@@ -7,6 +7,7 @@ from torch.nn import functional as F
 from collections import namedtuple
 from .resnet import ResnetVAEHyperparams
 from .symmetric import SymmetricVAEHyperparams
+from .basic import BasicVAEHyperparams
 from molecules.ml.hyperparams import OptimizerHyperparams, get_optimizer
 import torch.cuda.amp as amp
 
@@ -35,6 +36,12 @@ class VAEModel(nn.Module):
             self.decoder = ResnetDecoder(
                 self.encoder.match_shape, input_shape, hparams, init_weights
             )
+
+        elif isinstance(hparams, BasicVAEHyperparams):
+            from .basic import BasicEncoder, BasicDecoder
+
+            self.encoder = BasicEncoder(input_shape, hparams, init_weights)
+            self.decoder = BasicDecoder(input_shape, hparams, init_weights)
 
         else:
             raise TypeError(f"Invalid hparams type: {type(hparams)}.")
@@ -154,7 +161,7 @@ class VAE:
 
     def __init__(
         self,
-        input_shape,
+        input_shape: Tuple[int],
         hparams=SymmetricVAEHyperparams(),
         optimizer_hparams=OptimizerHyperparams(),
         loss=None,
@@ -344,16 +351,16 @@ class VAE:
 
         self.model.train()
         train_loss = 0.0
-        for batch_idx, token in enumerate(train_loader):
+        for batch_idx, sample in enumerate(train_loader):
 
-            data, rmsd, fnc, index = token
-            data = data.to(self.device[0])
+            data = sample["X"]
+            data = data.to(self.device.encoder)
 
             if self.verbose:
                 start = time.time()
 
             if callbacks:
-                pass  # TODO: add more to logs
+                logs["sample"] = sample
 
             for callback in callbacks:
                 callback.on_batch_begin(batch_idx, epoch, logs)
@@ -424,9 +431,11 @@ class VAE:
             callback.on_validation_begin(epoch, logs)
 
         with torch.no_grad():
-            for batch_idx, token in enumerate(valid_loader):
-                data, rmsd, fnc, index = token
-                data = data.to(self.device[0])
+            for batch_idx, sample in enumerate(valid_loader):
+                data = sample["X"].to(self.device.encoder)
+
+                if callbacks:
+                    logs["sample"] = sample
 
                 with amp.autocast(self.enable_amp):
                     logit_recon_batch, codes, mu, logvar = self.model(data)
@@ -437,14 +446,14 @@ class VAE:
                         self.lambda_rec * valid_loss_rec + valid_loss_kld
                     ).item()
 
+                if callbacks:
+                    logs["embeddings"] = mu.detach()
+
                 for callback in callbacks:
                     callback.on_validation_batch_end(
                         epoch,
                         batch_idx,
                         logs,
-                        rmsd=rmsd.detach(),
-                        fnc=fnc.detach(),
-                        mu=mu.detach(),
                     )
 
         valid_loss /= float(batch_idx + 1)
@@ -463,9 +472,8 @@ class VAE:
         self.model.eval()
         bce_losses, kld_losses, indices = [], [], []
         with torch.no_grad():
-            for batch_idx, token in enumerate(data_loader):
-                data, rmsd, fnc, index = token
-                data = data.to(self.device[0])
+            for batch_idx, sample in enumerate(data_loader):
+                data = sample["X"].to(self.device.encoder)
 
                 with amp.autocast(self.enable_amp):
                     logit_recon_batch, codes, mu, logvar = self.model(data)
@@ -475,7 +483,7 @@ class VAE:
 
                 bce_losses.append(bce_loss.item())
                 kld_losses.append(kld_loss.item())
-                indices.append(index)
+                indices.append(sample["index"])
 
         return bce_losses, kld_losses, indices
 

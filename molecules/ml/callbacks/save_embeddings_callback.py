@@ -1,8 +1,11 @@
-import os
 import time
+import h5py
 import numpy as np
+from pathlib import Path
+from typing import List, Union
 from .callback import Callback
-from molecules.utils import open_h5
+
+PathLike = Union[str, Path]
 
 
 class SaveEmbeddingsCallback(Callback):
@@ -10,10 +13,17 @@ class SaveEmbeddingsCallback(Callback):
     """
     Saves embeddings
     """
-    def __init__(self, out_dir,
-                 interval=1,
-                 sample_interval=20,
-                 mpi_comm=None):
+
+    def __init__(
+        self,
+        out_dir: PathLike,
+        interval: int = 1,
+        sample_interval: int = 20,
+        embeddings_dset_name: str = "embeddings",
+        indices_dset_name: str = "indices",
+        scalar_dset_names: List[str] = ["rmsd", "fnc"],
+        mpi_comm=None,
+    ):
         """
         Parameters
         ----------
@@ -23,89 +33,110 @@ class SaveEmbeddingsCallback(Callback):
             Plots every interval epochs, default is once per epoch.
         sample_interval : int
             Plots every sample_interval'th point in the data set
+        embeddings_dset_name: str
+            Name of the embeddings dataset in the HDF5 file.
+        indices_dset_name: str
+            Name of the indices dataset in the HDF5 file.
+        scalar_dset_names : List[str]
+            List of scalar dataset names inside HDF5 file.
         mpi_comm : mpi communicator for distributed training
         """
         super().__init__(interval, mpi_comm)
 
-        if self.is_eval_node:
-            os.makedirs(out_dir, exist_ok=True)
-
-        self.out_dir = out_dir
+        self.out_dir = Path(out_dir)
         self.sample_interval = sample_interval
+        self.embeddings_dset_name = embeddings_dset_name
+        self.indices_dset_name = indices_dset_name
+        self.scalar_dset_names = scalar_dset_names
 
+        if self.is_eval_node:
+            self.out_dir.mkdir(exist_ok=True)
 
     def on_validation_begin(self, epoch, logs):
         self.sample_counter = 0
         self.embeddings = []
-        self.rmsd = []
-        self.fnc = []
-        
-        
-    def on_validation_batch_end(self, batch, epoch, logs, mu=None,
-                                rmsd=None, fnc=None, **kwargs):
+        self.indices = []
+        self.scalars = {name: [] for name in self.scalar_dset_names}
+
+    def on_validation_batch_end(self, batch, epoch, logs, **kwargs):
         if self.sample_interval == 0:
             return
         if epoch % self.interval != 0:
             return
-        if (mu is None) or (rmsd is None) or (fnc is None):
+        embeddings, sample = logs.get("embeddings"), logs.get("sample")
+        if (embeddings is None) or (sample is None):
             return
-        
+
         # decide what to store
-        for idx in range(len(mu)):
+        for idx in range(len(embeddings)):
             if (self.sample_counter + idx) % self.sample_interval == 0:
                 # use a singleton slice to keep dimensions intact
-                self.embeddings.append(mu[idx:idx+1].detach().cpu().numpy())
-                self.rmsd.append(rmsd[idx:idx+1].detach().cpu().numpy())
-                self.fnc.append(fnc[idx:idx+1].detach().cpu().numpy())
+                self.embeddings.append(embeddings[idx : idx + 1].detach().cpu().numpy())
+                self.indices.append(
+                    sample["index"][idx : idx + 1].detach().cpu().numpy()
+                )
+                for name in self.scalar_dset_names:
+                    self.scalars[name].append(
+                        sample[name][idx : idx + 1].detach().cpu().numpy()
+                    )
 
         # increase sample counter
-        self.sample_counter += len(mu)
+        self.sample_counter += len(embeddings)
 
-        
     def on_validation_end(self, epoch, logs):
         if epoch % self.interval != 0:
             return
         # if the sample interval was too large, we should warn here and return
-        if not self.embeddings or not self.rmsd or not self.fnc:
-            print('Warning, not enough samples collected for tSNE, \
-                  try to reduce sampling interval')
+        if not self.embeddings:
+            print(
+                "Warning, not enough samples collected for tSNE, \
+                  try to reduce sampling interval"
+            )
             return
 
-        # prepare plot data
+        # prepare data
         embeddings = np.concatenate(self.embeddings, axis=0).astype(np.float32)
-        rmsd = np.concatenate(self.rmsd, axis=0).astype(np.float32)
-        fnc = np.concatenate(self.fnc, axis=0).astype(np.float32)
+        indices = np.concatenate(self.indices, axis=0).astype(np.float32)
+        scalars = {
+            name: np.concatenate(dset, axis=0).astype(np.float32)
+            for name, dset in self.scalars.items()
+        }
 
         # communicate if necessary
         if self.comm is not None:
             # gather data
             embeddings_gather = self.comm.gather(embeddings, root=0)
-            rmsd_gather = self.comm.gather(rmsd, root=0)
-            fnc_gather = self.comm.gather(fnc, root=0)
-
+            indices_gather = self.comm.gather(indices, root=0)
+            scalars_gather = {
+                name: self.comm.gather(scalar, root=0)
+                for scalar, name in scalars.items()
+            }
             # concat
             if self.is_eval_node:
                 embeddings = np.concatenate(embeddings_gather, axis=0)
-                rmsd = np.concatenate(rmsd_gather, axis=0)
-                fnc = np.concatenate(fnc_gather, axis=0)
+                indices = np.concatenate(indices_gather, axis=0)
+                scalars = {
+                    name: np.concatenate(scalar, axis=0)
+                    for name, scalar in scalars_gather.items()
+                }
 
         # Save embeddings to disk
         if self.is_eval_node and (self.sample_interval > 0):
-            self.save_embeddings(epoch, embeddings, rmsd, fnc, logs)
+            self.save_embeddings(epoch, embeddings, indices, scalars, logs)
 
         # All other nodes wait for node 0 to save
         if self.comm is not None:
             self.comm.barrier()
 
-
-    def save_embeddings(self, epoch, embeddings, rmsd, fnc, logs):
+    def save_embeddings(self, epoch, embeddings, indices, scalars, logs):
         # Create embedding file path and store in logs for downstream callbacks
-        time_stamp = time.strftime(f'embeddings-epoch-{epoch}-%Y%m%d-%H%M%S.h5')
-        embeddings_path = os.path.join(self.out_dir, time_stamp)
-        logs['embeddings_path'] = embeddings_path
+        time_stamp = time.strftime(f"embeddings-epoch-{epoch}-%Y%m%d-%H%M%S.h5")
+        embeddings_path = self.out_dir.joinpath(time_stamp).as_posix()
+        logs["embeddings_path"] = embeddings_path
 
         # Write embedding data to disk
-        with open_h5(embeddings_path, 'w', libver='latest', swmr=False) as f:
-            f['embeddings'] = embeddings[...]
-            f['rmsd'] = rmsd[...]
-            f['fnc'] = fnc[...]
+        with h5py.File(embeddings_path, "w", libver="latest", swmr=False) as f:
+            f[self.embeddings_dset_name] = embeddings[...]
+            f[self.indices_dset_name] = indices[...]
+            for name, dset in scalars.items():
+                f[name] = dset[...]

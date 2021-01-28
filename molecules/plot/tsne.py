@@ -1,13 +1,12 @@
 import os
 import time
 import wandb
-from typing import List, Tuple, Dict
+from typing import List
 from PIL import Image
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-import h5py
 from molecules.data.utils import parse_h5
 
 
@@ -49,6 +48,7 @@ def plot_tsne(
     pca: bool = True,
     projection_type: str = "2d",
     target_perplexity: int = 30,
+    embeddings_dset_name: str = "embeddings",
     perplexities: List[int] = [5, 30, 50, 100, 200],
     pca_dim: int = 50,
     plot_backend: str = "mpl",
@@ -64,8 +64,8 @@ def plot_tsne(
             Specify plotting backend as `mpl` for matplotlib or `plotly` for plotly.
     """
 
-    color_arrays = parse_h5(embeddings_path, fields=colors + ["embeddings"])
-    embeddings = color_arrays.pop("embeddings")
+    color_arrays = parse_h5(embeddings_path, fields=colors + [embeddings_dset_name])
+    embeddings = color_arrays.pop(embeddings_dset_name)
 
     if pca and embeddings.shape[1] > pca_dim:
         embeddings = compute_pca(embeddings, pca_dim)
@@ -241,6 +241,7 @@ def plot_tsne_publication(
     embeddings_path,
     out_dir="./",
     colors=["rmsd"],
+    embeddings_dset_name: str = "embeddings",
     pca=False,
     pca_dim=50,
     wandb_config=None,
@@ -249,8 +250,8 @@ def plot_tsne_publication(
 ):
     """Generate publication quality 3d t-SNE plot."""
 
-    color_arrays = parse_h5(embeddings_path, fields=colors + ["embeddings"])
-    embeddings = color_arrays.pop("embeddings")
+    color_arrays = parse_h5(embeddings_path, fields=colors + [embeddings_dset_name])
+    embeddings = color_arrays.pop(embeddings_dset_name)
 
     if pca and embeddings.shape[1] > 50:
         embeddings = pca(embeddings, pca_dim)
