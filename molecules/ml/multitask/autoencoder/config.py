@@ -67,4 +67,4 @@ class MultiTaskAutoEncoderModelConfig(ModelBaseConfig):
 
 
 if __name__ == "__main__":
-    MultiTaskAutoEncoderModelConfig().dump_yaml("autoencoder_template.yaml")
+    MultiTaskAutoEncoderModelConfig().dump_yaml("multitask_autoencoder_template.yaml")
