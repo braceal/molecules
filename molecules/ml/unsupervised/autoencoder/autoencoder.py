@@ -216,7 +216,8 @@ class AutoEncoder(nn.Module):
 
     def forward(self, x):
         z = self.encode(x)
-        return self.decode(z)
+        recon_x = self.decode(z)
+        return z, recon_x
 
 
 def _load_checkpoint(path: str, model: AutoEncoder, optimizer: torch.optim.Optimizer):
@@ -294,7 +295,7 @@ def _train(
             callback.on_batch_begin(batch_idx, epoch, logs)
 
         # forward
-        recon_batch = model(data)
+        _, recon_batch = model(data)
         loss = criterion(recon_batch, data)
 
         # backward
@@ -361,12 +362,12 @@ def _validate(model, device, valid_loader, criterion, epoch, callbacks, logs, ve
             if callbacks:
                 logs["sample"] = sample
 
-            recon_batch = model(data)
+            z, recon_batch = model(data)
             loss = criterion(recon_batch, data)
             valid_loss += loss.item()
 
             if callbacks:
-                logs["embeddings"] = recon_batch.detach()
+                logs["embeddings"] = z.detach()
 
             for callback in callbacks:
                 callback.on_validation_batch_end(
