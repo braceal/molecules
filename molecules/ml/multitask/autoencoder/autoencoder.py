@@ -38,6 +38,7 @@ class RMSDNet(MultiTaskModelHead):
 
 class MultiTaskMonolith(nn.Module):
     def __init__(self, autoencoder_model: AutoEncoder, heads: List[MultiTaskModelHead]):
+        super().__init__()
         self.autoencoder_model = autoencoder_model
         self.heads = heads
 
