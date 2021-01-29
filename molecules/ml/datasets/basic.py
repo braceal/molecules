@@ -105,7 +105,9 @@ class BasicDataset(Dataset):
         # Add scalars for logging
         for name, dset in self._scalar_dsets.items():
             sample[name] = torch.tensor(
-                dset[index], requires_grad=self._scalar_requires_grad
+                dset[index],
+                requires_grad=self._scalar_requires_grad,
+                dtype=torch.float32,
             )
 
         return sample
