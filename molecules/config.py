@@ -2,8 +2,7 @@ import json
 import yaml
 from pydantic import BaseSettings as _BaseSettings
 from pathlib import Path
-from typing import Union
-from typing import TypeVar, Type
+from typing import TypeVar, Type, Union, Optional, Dict, Any
 
 _T = TypeVar("_T")
 
@@ -18,3 +17,20 @@ class BaseSettings(_BaseSettings):
         with open(filename) as fp:
             raw_data = yaml.safe_load(fp)
         return cls(**raw_data)
+
+
+class ModelBaseConfig(BaseSettings):
+    # Project name for wandb logging
+    wandb_project_name: Optional[str] = None
+    # Team name for wandb logging
+    wandb_entity_name: Optional[str] = None
+    # Model tag for wandb labeling
+    model_tag: Optional[str] = None
+
+
+class OptimizerConfig(BaseSettings):
+    class Config:
+        extra = "allow"
+
+    name: str = "Adam"
+    hparams: Dict[str, Any] = {}
