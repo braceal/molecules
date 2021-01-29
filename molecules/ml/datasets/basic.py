@@ -22,6 +22,7 @@ class BasicDataset(Dataset):
         split_ptc: float = 0.8,
         split: str = "train",
         seed: int = 333,
+        scalar_requires_grad: bool = False,
     ):
         """
         Parameters
@@ -46,6 +47,11 @@ class BasicDataset(Dataset):
         seed : int
             Seed for the RNG for the splitting. Make sure it is the same for
             all workers reading from the same file.
+
+        scalar_requires_grad : bool
+            Sets requires_grad torch.Tensor parameter for scalars specified by
+            `scalar_dset_names`. Set to True, to use scalars for multi-task
+            learning. If scalars are only required for plotting, then set it as False.
         """
         if split not in ("train", "valid"):
             raise ValueError("Parameter split must be 'train' or 'valid'.")
@@ -55,6 +61,7 @@ class BasicDataset(Dataset):
         self._file_path = Path(path)
         self._dataset_name = dataset_name
         self._scalar_dset_names = scalar_dset_names
+        self._scalar_requires_grad = scalar_requires_grad
         self._initialized = False
 
         # get lengths and paths
@@ -97,6 +104,8 @@ class BasicDataset(Dataset):
         sample["index"] = torch.tensor(index, requires_grad=False)
         # Add scalars for logging
         for name, dset in self._scalar_dsets.items():
-            sample[name] = torch.tensor(dset[index], requires_grad=False)
+            sample[name] = torch.tensor(
+                dset[index], requires_grad=self._scalar_requires_grad
+            )
 
         return sample
