@@ -40,7 +40,7 @@ class MultiTaskMonolith(nn.Module):
     def __init__(self, autoencoder_model: AutoEncoder, heads: List[MultiTaskModelHead]):
         super().__init__()
         self.autoencoder_model = autoencoder_model
-        self.heads = heads
+        self.heads = nn.ModuleList(heads)
 
         # To implement the loss weighting for different tasks as in
         # `https://arxiv.org/pdf/1705.07115.pdf`
