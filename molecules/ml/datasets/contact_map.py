@@ -21,6 +21,7 @@ class ContactMapDataset(Dataset):
         split: str = "train",
         seed: int = 333,
         cm_format: str = "sparse-concat",
+        scalar_requires_grad: bool = False,
     ):
         """
         Parameters
@@ -45,15 +46,20 @@ class ContactMapDataset(Dataset):
             Either 'train' or 'valid', specifies whether this
             dataset returns train or validation data.
 
+        seed : int
+            Seed for the RNG for the splitting. Make sure it is the same for all workers reading
+            from the same file.
+
         cm_format : str
             If 'sparse-concat', process data as concatenated row,col indicies.
             If 'sparse-rowcol', process data as sparse row/col COO format.
             If 'full', process data is normal torch tensors (matrices).
             If none of the above, raise a ValueError.
 
-        seed : int
-            Seed for the RNG for the splitting. Make sure it is the same for all workers reading
-            from the same file.
+        scalar_requires_grad : bool
+            Sets requires_grad torch.Tensor parameter for scalars specified by `scalar_dset_names`.
+            Set to True, to use scalars for multi-task learning. If scalars are only required for
+            plotting, then set it as False.
         """
         if split not in ("train", "valid"):
             raise ValueError("Parameter split must be 'train' or 'valid'.")
@@ -71,6 +77,7 @@ class ContactMapDataset(Dataset):
         self.scalar_dset_names = scalar_dset_names
         self.cm_format = cm_format
         self.shape = shape
+        self._scalar_requires_grad = scalar_requires_grad
         self.load_values = False
 
         # get lengths and paths
@@ -157,6 +164,8 @@ class ContactMapDataset(Dataset):
         sample["index"] = torch.tensor(index, requires_grad=False)
         # Add scalars for logging
         for name, dset in self.scalar_dsets.items():
-            sample[name] = torch.tensor(dset[index], requires_grad=False)
+            sample[name] = torch.tensor(
+                dset[index], requires_grad=self._scalar_requires_grad
+            )
 
         return sample
