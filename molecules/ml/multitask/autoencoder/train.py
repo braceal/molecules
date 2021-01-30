@@ -20,7 +20,7 @@ from molecules.ml.callbacks import (
 from molecules.ml.unsupervised.autoencoder.autoencoder import AutoEncoder
 from molecules.ml.unsupervised.autoencoder.hyperparams import AutoEncoderHyperparams
 from molecules.ml.multitask.autoencoder.autoencoder import (
-    MultiTaskMonolith,
+    MultiTaskModel,
     train,
     RMSDNet,
 )
@@ -73,21 +73,21 @@ def main(cfg: MultiTaskAutoEncoderModelConfig):
     )
     rmsd_model = RMSDNet(rmsd_criterion, scalar_name="rmsd", input_dim=cfg.latent_dim)
 
-    monolith_model = MultiTaskMonolith(autorencoder_model, heads=[rmsd_model])
+    multitask_model = MultiTaskModel(autorencoder_model, heads=[rmsd_model])
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    monolith_model.to(device)
+    multitask_model.to(device)
 
     # Diplay model
-    print(monolith_model)
+    print(multitask_model)
     # Only print summary when encoder_gpu is None or 0
-    summary(monolith_model, input_shape)
+    summary(multitask_model, input_shape)
 
     optimizer_hparams = OptimizerHyperparams(
         name=cfg.optimizer.name,
         hparams=cfg.optimizer.hparams,
     )
-    optimizer = get_optimizer(monolith_model.parameters(), optimizer_hparams)
+    optimizer = get_optimizer(multitask_model.parameters(), optimizer_hparams)
 
     # Load training and validation data
     # training
@@ -130,7 +130,7 @@ def main(cfg: MultiTaskAutoEncoderModelConfig):
         num_workers=cfg.num_data_workers,
     )
 
-    wandb_config = setup_wandb(cfg, monolith_model, cfg.output_path)
+    wandb_config = setup_wandb(cfg, multitask_model, cfg.output_path)
 
     # Optional callbacks
     loss_callback = LossCallback(
@@ -169,7 +169,7 @@ def main(cfg: MultiTaskAutoEncoderModelConfig):
 
     # create model
     train(
-        monolith_model,
+        multitask_model,
         optimizer,
         device,
         train_loader,

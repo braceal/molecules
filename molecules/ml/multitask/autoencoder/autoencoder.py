@@ -36,7 +36,7 @@ class RMSDNet(MultiTaskModelHead):
         return self.model(z)
 
 
-class MultiTaskMonolith(nn.Module):
+class MultiTaskModel(nn.Module):
     def __init__(self, autoencoder_model: AutoEncoder, heads: List[MultiTaskModelHead]):
         super().__init__()
         self.autoencoder_model = autoencoder_model
@@ -78,7 +78,7 @@ def _compute_loss(monolith, sample, recon_criterion, recon_x, model_preds):
 
 
 def _train(
-    monolith: MultiTaskMonolith,
+    monolith: MultiTaskModel,
     optimizer: torch.optim.Optimizer,
     device: torch.device,
     train_loader,
@@ -226,7 +226,7 @@ def _validate(
 
 
 def train(
-    model: MultiTaskMonolith,
+    model: MultiTaskModel,
     optimizer: torch.optim.Optimizer,
     device: torch.device,
     train_loader,
