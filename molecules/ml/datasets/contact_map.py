@@ -1,8 +1,11 @@
 import torch
 import numpy as np
-from typing import List, Tuple, Optional
+from pathlib import Path
+from typing import List, Tuple, Optional, Union
 from torch.utils.data import Dataset
 from molecules.utils import open_h5
+
+PathLike = Union[str, Path]
 
 
 class ContactMapDataset(Dataset):
@@ -13,10 +16,10 @@ class ContactMapDataset(Dataset):
 
     def __init__(
         self,
-        path: str,
+        path: PathLike,
         dataset_name: str,
         scalar_dset_names: List[str],
-        shape: Tuple[int],
+        shape: Tuple[int, ...],
         split_ptc: float = 0.8,
         split: str = "train",
         seed: int = 333,
@@ -27,7 +30,7 @@ class ContactMapDataset(Dataset):
         """
         Parameters
         ----------
-        path : str
+        path : PathLike
             Path to h5 file containing contact matrices.
 
         dataset_name : str
@@ -79,7 +82,7 @@ class ContactMapDataset(Dataset):
             )
 
         # HDF5 data params
-        self.file_path = path
+        self.file_path = str(path)
         self.dataset_name = dataset_name
         self.scalar_dset_names = scalar_dset_names
         self.cm_format = cm_format

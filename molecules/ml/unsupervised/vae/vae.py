@@ -161,7 +161,7 @@ class VAE:
 
     def __init__(
         self,
-        input_shape: Tuple[int],
+        input_shape: Tuple[int, ...],
         hparams=SymmetricVAEHyperparams(),
         optimizer_hparams=OptimizerHyperparams(),
         loss=None,
