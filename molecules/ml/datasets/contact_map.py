@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from torch.utils.data import Dataset
 from molecules.utils import open_h5
 
@@ -21,6 +21,8 @@ class ContactMapDataset(Dataset):
         split: str = "train",
         seed: int = 333,
         cm_format: str = "sparse-concat",
+        scalar_requires_grad: bool = False,
+        values_dset_name: Optional[str] = None,
     ):
         """
         Parameters
@@ -45,15 +47,26 @@ class ContactMapDataset(Dataset):
             Either 'train' or 'valid', specifies whether this
             dataset returns train or validation data.
 
+        seed : int
+            Seed for the RNG for the splitting. Make sure it is the
+            same for all workers reading from the same file.
+
         cm_format : str
             If 'sparse-concat', process data as concatenated row,col indicies.
             If 'sparse-rowcol', process data as sparse row/col COO format.
             If 'full', process data is normal torch tensors (matrices).
             If none of the above, raise a ValueError.
 
-        seed : int
-            Seed for the RNG for the splitting. Make sure it is the same for all workers reading
-            from the same file.
+        scalar_requires_grad : bool
+            Sets requires_grad torch.Tensor parameter for scalars specified by
+            `scalar_dset_names`. Set to True, to use scalars for multi-task
+            learning. If scalars are only required for plotting, then set it as False.
+
+        values_dset_name: str, optional
+            Name of HDF5 dataset field containing optional values of the entries
+            the distance/contact matrix. By default, values are all assumed to be 1
+            corresponding to a binary contact map and created on the fly.
+
         """
         if split not in ("train", "valid"):
             raise ValueError("Parameter split must be 'train' or 'valid'.")
@@ -71,7 +84,8 @@ class ContactMapDataset(Dataset):
         self.scalar_dset_names = scalar_dset_names
         self.cm_format = cm_format
         self.shape = shape
-        self.load_values = False
+        self._scalar_requires_grad = scalar_requires_grad
+        self._values_dset_name = values_dset_name
 
         # get lengths and paths
         with open_h5(self.file_path, "r", libver="latest", swmr=False) as f:
@@ -81,10 +95,6 @@ class ContactMapDataset(Dataset):
                 self.len = len(f[self.dataset_name])
             elif self.cm_format == "full":
                 self.len = len(f[self.dataset_name])
-
-            # check if we need to load values
-            if self.dataset_name + "_values" in f:
-                self.load_values = True
 
         # do splitting
         self.split_ind = int(split_ptc * self.len)
@@ -113,12 +123,12 @@ class ContactMapDataset(Dataset):
             if self.cm_format == "sparse-rowcol":
                 self.row_dset = self.h5_file[self.dataset_name]["row"]
                 self.col_dset = self.h5_file[self.dataset_name]["col"]
-                if self.load_values:
-                    self.val_dset = self.h5_file[self.dataset_name + "_values"]
+                if self._values_dset_name is not None:
+                    self.val_dset = self.h5_file[self._values_dset_name]
             elif self.cm_format == "sparse-concat":
                 self.dset = self.h5_file[self.dataset_name]
-                if self.load_values:
-                    self.val_dset = self.h5_file[self.dataset_name + "_values"]
+                if self._values_dset_name is not None:
+                    self.val_dset = self.h5_file[self._values_dset_name]
             else:
                 self.dset = self.h5_file[self.dataset_name]
             # Load scalar dsets
@@ -142,8 +152,8 @@ class ContactMapDataset(Dataset):
                 colind = self.col_dset[index, ...]
                 indices = torch.from_numpy(np.vstack((rowind, colind))).to(torch.long)
 
-            # Create array of 1s, all values in the contact map are 1
-            if self.load_values:
+            # Create array of 1s, all values in the contact map are 1. Or load values.
+            if self._values_dset_name is not None:
                 values = torch.from_numpy(self.val_dset[index, ...]).to(torch.float32)
             else:
                 values = torch.ones(indices.shape[1], dtype=torch.float32)
@@ -157,6 +167,8 @@ class ContactMapDataset(Dataset):
         sample["index"] = torch.tensor(index, requires_grad=False)
         # Add scalars for logging
         for name, dset in self.scalar_dsets.items():
-            sample[name] = torch.tensor(dset[index], requires_grad=False)
+            sample[name] = torch.tensor(
+                dset[index], requires_grad=self._scalar_requires_grad
+            )
 
         return sample

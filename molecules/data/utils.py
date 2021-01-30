@@ -1,4 +1,5 @@
 import h5py
+import torch
 import numpy as np
 from pathlib import Path
 from typing import List, Optional, Tuple, Union, Dict
@@ -164,3 +165,10 @@ def unimodal_subsample(
             inds[right_tail],
         )
     )
+
+
+def dict_to_device(
+    tensor_dict: Dict[str, torch.Tensor], device: torch.device
+) -> Dict[str, torch.Tensor]:
+    """Move dictionary of torch.Tensor to device."""
+    return {k: v.to(device) for k, v in tensor_dict.items()}
