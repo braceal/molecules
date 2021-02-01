@@ -1,12 +1,20 @@
 import os
 import time
 import torch
+import warnings
+from pathlib import Path
+from typing import Union, Optional
 from .callback import Callback
+
+PathLike = Union[str, Path]
 
 
 class CheckpointCallback(Callback):
     def __init__(
-        self, interval=1, out_dir=os.path.join(".", "checkpoints"), mpi_comm=None
+        self,
+        interval: int = 1,
+        out_dir: Optional[PathLike] = None,
+        mpi_comm=None,
     ):
         """
         Checkpoint interface for saving dictionary objects to disk
@@ -16,22 +24,37 @@ class CheckpointCallback(Callback):
 
         Parameters
         ----------
-        out_dir : str
-            Directory to store checkpoint files.
-            Files are named 'epoch-{e}-%Y%m%d-%H%M%S.pt'
         interval : int
             Plots every interval epochs, default is once per epoch.
+        out_dir : Optional[PathLike]
+            Directory to store checkpoint files.
+            Files are named 'epoch-{e}-%Y%m%d-%H%M%S.pt'
         """
         super().__init__(interval, mpi_comm)
 
-        if self.is_eval_node:
-            os.makedirs(out_dir, exist_ok=True)
+        if out_dir is None:
+            self.out_dir = Path(".").joinpath("checkpoints")
+        else:
+            self.out_dir = Path(out_dir)
 
-        self.out_dir = out_dir
+        if self.is_eval_node:
+            self.out_dir.mkdir(exist_ok=True)
 
     def on_epoch_end(self, epoch, logs):
         if self.is_eval_node and epoch % self.interval == 0:
-            self._save(epoch, logs)
+            self._new_save(epoch, logs)
+
+    def _new_save(self, epoch, logs):
+        """Saves arbitrary checkpoint dictionary."""
+        checkpoint = logs.get("checkpoint", {})
+        if not checkpoint:
+            warnings.warn("CheckpointCallback is defined but checkpoint dict is empty.")
+            return
+        checkpoint["epoch"] = epoch
+
+        time_stamp = time.strftime(f"epoch-{epoch}-%Y%m%d-%H%M%S.pt")
+        path = self.out_dir.joinpath(time_stamp)
+        torch.save(checkpoint, path)
 
     def _save(self, epoch, logs):
         """Saves optimizer state and encoder/decoder weights."""

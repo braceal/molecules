@@ -402,6 +402,13 @@ class VAE:
                     )
                 )
 
+            if callbacks:
+                logs["checkpoint"] = {
+                    "encoder_state_dict": model.encoder.state_dict(),
+                    "decoder_state_dict": model.decoder.state_dict(),
+                    "optimizer_state_dict": self.optimizer.state_dict(),
+                }
+
             for callback in callbacks:
                 callback.on_batch_end(batch_idx, epoch, logs)
 
