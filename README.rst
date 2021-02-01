@@ -27,14 +27,17 @@ For references, tutorials, and examples check out our `documentation`_.
 Installation
 ------------
 To install a conda environment:
+
 .. code-block:: console
 
     git clone https://github.com/braceal/molecules.git
     conda env create -f env.yaml -p ./conda-env
 
 For development install via pip:
+
 .. code-block:: console
 
+    git clone https://github.com/braceal/molecules.git
     python3 -m venv env
     source env/bin/activate
     pip install --upgrade pip setuptools wheel
