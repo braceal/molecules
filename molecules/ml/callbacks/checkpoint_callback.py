@@ -48,7 +48,9 @@ class CheckpointCallback(Callback):
         """Saves arbitrary checkpoint dictionary."""
         checkpoint = logs.get("checkpoint", {})
         if not checkpoint:
-            warnings.warn("CheckpointCallback is defined but checkpoint dict is empty.")
+            warnings.warn(
+                "CheckpointCallback is defined but checkpoint logs dict is empty."
+            )
             return
         checkpoint["epoch"] = epoch
 
