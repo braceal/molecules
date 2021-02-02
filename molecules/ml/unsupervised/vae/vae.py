@@ -216,7 +216,7 @@ class VAE:
         # Tuple of encoder, decoder device
         self.device = Device(*self._configure_device(gpu))
 
-        self.model = VAEModel(input_shape, hparams, init_weights, self.device)
+        self._model = VAEModel(input_shape, hparams, init_weights, self.device)
 
         # TODO: consider making optimizer_hparams a member variable
         # RMSprop with lr=0.001, alpha=0.9, epsilon=1e-08, decay=0.0
@@ -234,6 +234,13 @@ class VAE:
         if dist.is_initialized():
             self.comm_rank = dist.get_rank()
             self.comm_size = dist.get_world_size()
+
+    @property
+    def model(self) -> VAEModel:
+        handle = self._model
+        if isinstance(handle, torch.nn.parallel.DistributedDataParallel):
+            handle = handle.module
+        return handle
 
     def _configure_device(self, gpu):
         """
@@ -298,10 +305,7 @@ class VAE:
         """
 
         if callbacks:
-            handle = self.model
-            if isinstance(handle, torch.nn.parallel.DistributedDataParallel):
-                handle = handle.module
-            logs = {"model": handle, "optimizer": self.optimizer}
+            logs = {"model": self.model, "optimizer": self.optimizer}
             if dist.is_initialized():
                 logs["comm_size"] = self.comm_size
         else:
@@ -348,8 +352,8 @@ class VAE:
         logs : dict
             Filled with data for callbacks
         """
-
-        self.model.train()
+        model = self.model
+        model.train()
         train_loss = 0.0
         for batch_idx, sample in enumerate(train_loader):
 
@@ -367,7 +371,7 @@ class VAE:
 
             # forward
             with amp.autocast(self.enable_amp):
-                logit_recon_batch, codes, mu, logvar = self.model(data)
+                logit_recon_batch, codes, mu, logvar = model(data)
                 loss_rec, loss_kld = self.loss_fnc(logit_recon_batch, data, mu, logvar)
                 loss = self.lambda_rec * loss_rec + loss_kld
 
@@ -398,6 +402,13 @@ class VAE:
                     )
                 )
 
+            if callbacks:
+                logs["checkpoint"] = {
+                    "encoder_state_dict": model.encoder.state_dict(),
+                    "decoder_state_dict": model.decoder.state_dict(),
+                    "optimizer_state_dict": self.optimizer.state_dict(),
+                }
+
             for callback in callbacks:
                 callback.on_batch_end(batch_idx, epoch, logs)
 
@@ -425,7 +436,8 @@ class VAE:
         logs : dict
             Filled with data for callbacks
         """
-        self.model.eval()
+        model = self.model
+        model.eval()
         valid_loss = 0
         for callback in callbacks:
             callback.on_validation_begin(epoch, logs)
@@ -438,7 +450,7 @@ class VAE:
                     logs["sample"] = sample
 
                 with amp.autocast(self.enable_amp):
-                    logit_recon_batch, codes, mu, logvar = self.model(data)
+                    logit_recon_batch, codes, mu, logvar = model(data)
                     valid_loss_rec, valid_loss_kld = self.loss_fnc(
                         logit_recon_batch, data, mu, logvar
                     )
@@ -469,14 +481,15 @@ class VAE:
 
     def compute_losses(self, data_loader, checkpoint):
         self._load_checkpoint(checkpoint)
-        self.model.eval()
+        model = self.model
+        model.eval()
         bce_losses, kld_losses, indices = [], [], []
         with torch.no_grad():
             for batch_idx, sample in enumerate(data_loader):
                 data = sample["X"].to(self.device.encoder)
 
                 with amp.autocast(self.enable_amp):
-                    logit_recon_batch, codes, mu, logvar = self.model(data)
+                    logit_recon_batch, codes, mu, logvar = model(data)
                     bce_loss, kld_loss = vae_logit_loss_outlier_helper(
                         logit_recon_batch, data, mu, logvar, self.lambda_rec
                     )
@@ -506,11 +519,9 @@ class VAE:
         cp = torch.load(path, map_location="cpu")
 
         # model
-        handle = self.model
-        if isinstance(handle, torch.nn.parallel.DistributedDataParallel):
-            handle = handle.module
-        handle.encoder.load_state_dict(cp["encoder_state_dict"])
-        handle.decoder.load_state_dict(cp["decoder_state_dict"])
+        model = self.model
+        model.encoder.load_state_dict(cp["encoder_state_dict"])
+        model.decoder.load_state_dict(cp["decoder_state_dict"])
 
         # optimizer
         self.optimizer.load_state_dict(cp["optimizer_state_dict"])
@@ -531,10 +542,7 @@ class VAE:
         torch.Tensor of embeddings of shape (batch-size, latent_dim)
 
         """
-        handle = self.model
-        if isinstance(handle, torch.nn.parallel.DistributedDataParallel):
-            handle = handle.module
-        return handle.encode(x)
+        return self.model.encode(x)
 
     def decode(self, embedding):
         """
@@ -550,10 +558,7 @@ class VAE:
         -------
         torch.Tensor of generated matrices of shape (batch-size, input_shape)
         """
-        handle = self.model
-        if isinstance(handle, torch.nn.parallel.DistributedDataParallel):
-            handle = handle.module
-        return handle.decode(embedding)
+        return self.model.decode(embedding)
 
     def save_weights(self, enc_path, dec_path):
         """
@@ -567,10 +572,7 @@ class VAE:
         dec_path : str
             Path to save the decoder weights.
         """
-        handle = self.model
-        if isinstance(handle, torch.nn.parallel.DistributedDataParallel):
-            handle = handle.module
-        handle.save_weights(enc_path, dec_path)
+        self.model.save_weights(enc_path, dec_path)
 
     def load_weights(self, enc_path, dec_path):
         """
@@ -584,7 +586,4 @@ class VAE:
         dec_path : str
             Path to save the decoder weights.
         """
-        handle = self.model
-        if isinstance(handle, torch.nn.parallel.DistributedDataParallel):
-            handle = handle.module
-        handle.load_weights(enc_path, dec_path)
+        self.model.load_weights(enc_path, dec_path)
