@@ -3,6 +3,7 @@ from pyinn.utils import Stream, load_kernel
 from torch.autograd import Function
 from torch.nn.modules.module import Module
 
+
 class EMD(Module):
     def __init__(self):
         super().__init__()
@@ -21,25 +22,45 @@ class EMDFunction(Function):
         _, m, _ = xyz2.size()
 
         match = torch.zeros(batch_size, m, num_pts).cuda()
-        cost = torch.zeros(batch_size, ).cuda()
+        cost = torch.zeros(
+            batch_size,
+        ).cuda()
         temp = torch.zeros(batch_size, 2 * (m + num_pts)).cuda()
 
         with torch.cuda.device_of(xyz1):
             # 1) get matching
-            f = load_kernel('approxmatch', approxmatch_kernel)
-            f(block=(512, 1, 1),  # (CUDA_NUM_THREADS,1,1),
-              grid=(32, 1, 1),  # GET_BLOCKS(n),1,1),
-              args=[batch_size, num_pts, m, xyz1.data_ptr(), xyz2.data_ptr(),
-                    match.data_ptr(), temp.data_ptr()],
-              stream=Stream(ptr=torch.cuda.current_stream().cuda_stream))
+            f = load_kernel("approxmatch", approxmatch_kernel)
+            f(
+                block=(512, 1, 1),  # (CUDA_NUM_THREADS,1,1),
+                grid=(32, 1, 1),  # GET_BLOCKS(n),1,1),
+                args=[
+                    batch_size,
+                    num_pts,
+                    m,
+                    xyz1.data_ptr(),
+                    xyz2.data_ptr(),
+                    match.data_ptr(),
+                    temp.data_ptr(),
+                ],
+                stream=Stream(ptr=torch.cuda.current_stream().cuda_stream),
+            )
 
             # 2) calculate matching cost
-            g = load_kernel('matchcost', matchcost_kernel)
-            g(block=(512, 1, 1),  # (CUDA_NUM_THREADS, 1, 1),
-              grid=(32, 1, 1),  # (GET_BLOCKS(n), 1, 1),
-              args=[batch_size, num_pts, m, xyz1.data_ptr(), xyz2.data_ptr(),
-                    match.data_ptr(), cost.data_ptr()],
-              stream=Stream(ptr=torch.cuda.current_stream().cuda_stream))
+            g = load_kernel("matchcost", matchcost_kernel)
+            g(
+                block=(512, 1, 1),  # (CUDA_NUM_THREADS, 1, 1),
+                grid=(32, 1, 1),  # (GET_BLOCKS(n), 1, 1),
+                args=[
+                    batch_size,
+                    num_pts,
+                    m,
+                    xyz1.data_ptr(),
+                    xyz2.data_ptr(),
+                    match.data_ptr(),
+                    cost.data_ptr(),
+                ],
+                stream=Stream(ptr=torch.cuda.current_stream().cuda_stream),
+            )
 
         ctx.save_for_backward(xyz1, xyz2, match)
         del temp
@@ -58,25 +79,43 @@ class EMDFunction(Function):
 
         with torch.cuda.device_of(grad_cost):
             if xyz1.requires_grad:
-                f = load_kernel('matchcostgrad1', matchcostgrad1_kernel)
-                f(block=(512, 1, 1),  # (CUDA_NUM_THREADS, 1, 1),
-                  grid=(32, 1, 1),  # (GET_BLOCKS(xyz1.numel()), 1, 1),
-                  args=[batch_size, num_pts, m, xyz1.data_ptr(),
-                        xyz2.data_ptr(), match.data_ptr(), grad1.data_ptr()],
-                  stream=Stream(ptr=torch.cuda.current_stream().cuda_stream))
+                f = load_kernel("matchcostgrad1", matchcostgrad1_kernel)
+                f(
+                    block=(512, 1, 1),  # (CUDA_NUM_THREADS, 1, 1),
+                    grid=(32, 1, 1),  # (GET_BLOCKS(xyz1.numel()), 1, 1),
+                    args=[
+                        batch_size,
+                        num_pts,
+                        m,
+                        xyz1.data_ptr(),
+                        xyz2.data_ptr(),
+                        match.data_ptr(),
+                        grad1.data_ptr(),
+                    ],
+                    stream=Stream(ptr=torch.cuda.current_stream().cuda_stream),
+                )
 
             if xyz2.requires_grad:
-                g = load_kernel('matchcostgrad2', matchcostgrad2_kernel)
-                g(block=(256, 1, 1),  # (CUDA_NUM_THREADS, 1, 1),
-                  grid=(32, 32, 1),  # (GET_BLOCKS(xyz2.numel()), 1, 1),
-                  args=[batch_size, num_pts, m, xyz1.data_ptr(),
-                        xyz2.data_ptr(), match.data_ptr(), grad2.data_ptr()],
-                  stream=Stream(ptr=torch.cuda.current_stream().cuda_stream))
+                g = load_kernel("matchcostgrad2", matchcostgrad2_kernel)
+                g(
+                    block=(256, 1, 1),  # (CUDA_NUM_THREADS, 1, 1),
+                    grid=(32, 32, 1),  # (GET_BLOCKS(xyz2.numel()), 1, 1),
+                    args=[
+                        batch_size,
+                        num_pts,
+                        m,
+                        xyz1.data_ptr(),
+                        xyz2.data_ptr(),
+                        match.data_ptr(),
+                        grad2.data_ptr(),
+                    ],
+                    stream=Stream(ptr=torch.cuda.current_stream().cuda_stream),
+                )
 
         return grad1 * grad_cost.view(-1, 1, 1), grad2 * grad_cost.view(-1, 1, 1)
 
 
-approxmatch_kernel = '''
+approxmatch_kernel = """
 extern "C"
 __global__ void approxmatch(int b,int n,int m,const float * __restrict__ xyz1,const float * __restrict__ xyz2,float * __restrict__ match,float * temp){
         float * remainL=temp+blockIdx.x*(n+m)*2, * remainR=temp+blockIdx.x*(n+m)*2+n,*ratioL=temp+blockIdx.x*(n+m)*2+n+m,*ratioR=temp+blockIdx.x*(n+m)*2+n+m+n;
@@ -256,9 +295,9 @@ __global__ void approxmatch(int b,int n,int m,const float * __restrict__ xyz1,co
                         __syncthreads();
                 }
         }
-}'''
+}"""
 
-matchcost_kernel = '''
+matchcost_kernel = """
 extern "C"
 __global__ void matchcost(int b,int n,int m,const float * __restrict__ xyz1,const float * __restrict__ xyz2,const float * __restrict__ match,float * __restrict__ out){
         __shared__ float allsum[512];
@@ -302,9 +341,9 @@ __global__ void matchcost(int b,int n,int m,const float * __restrict__ xyz1,cons
                         out[i]=allsum[0];
                 __syncthreads();
         }
-}'''
+}"""
 
-matchcostgrad2_kernel = '''
+matchcostgrad2_kernel = """
 extern "C"
 __global__ void matchcostgrad2(int b,int n,int m,const float * __restrict__ xyz1,const float * __restrict__ xyz2,const float * __restrict__ match,float * __restrict__ grad2){
         __shared__ float sum_grad[256*3];
@@ -346,9 +385,9 @@ __global__ void matchcostgrad2(int b,int n,int m,const float * __restrict__ xyz1
                         __syncthreads();
                 }
         }
-}'''
+}"""
 
-matchcostgrad1_kernel = '''
+matchcostgrad1_kernel = """
 extern "C"
 __global__ void matchcostgrad1(int b,int n,int m,const float * __restrict__ xyz1,const float * __restrict__ xyz2,const float * __restrict__ match,float * __restrict__ grad1){
         for (int i=blockIdx.x;i<b;i+=gridDim.x){
@@ -372,7 +411,7 @@ __global__ void matchcostgrad1(int b,int n,int m,const float * __restrict__ xyz1
                 }
         }
 }
-'''
+"""
 
 
 # void approxmatchLauncher(int b,int n,int m,const float * xyz1,const float * xyz2,float * match,float * temp){
